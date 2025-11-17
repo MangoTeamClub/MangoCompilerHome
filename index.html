@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MangoCompiler</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/monokai.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #1a2a6c, #b21f1f, #fdbb2d);
+            color: #333;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: rgba(255, 255, 255, 0.95);
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+        
+        header {
+            background: linear-gradient(90deg, #FFA62E, #FF7A00);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            position: relative;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        
+        .subtitle {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+        
+        .editor-container {
+            display: flex;
+            flex-wrap: wrap;
+            height: 70vh;
+        }
+        
+        .editor-panel, .output-panel {
+            flex: 1;
+            min-width: 300px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .panel-title {
+            font-size: 1.2rem;
+            margin-bottom: 10px;
+            color: #FF7A00;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .editor-wrapper, .output-wrapper {
+            flex: 1;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        #editor {
+            height: 100%;
+            width: 100%;
+        }
+        
+        #output {
+            height: 100%;
+            width: 100%;
+            padding: 15px;
+            background-color: #f8f9fa;
+            overflow-y: auto;
+            font-family: monospace;
+            white-space: pre-wrap;
+            line-height: 1.5;
+        }
+        
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            padding: 20px;
+            background-color: #f5f5f5;
+            border-top: 1px solid #ddd;
+        }
+        
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .run-btn {
+            background: linear-gradient(90deg, #4CAF50, #2E7D32);
+            color: white;
+        }
+        
+        .run-btn:hover {
+            background: linear-gradient(90deg, #2E7D32, #1B5E20);
+            transform: translateY(-2px);
+        }
+        
+        .export-btn {
+            background: linear-gradient(90deg, #2196F3, #0D47A1);
+            color: white;
+        }
+        
+        .export-btn:hover {
+            background: linear-gradient(90deg, #0D47A1, #082E62);
+            transform: translateY(-2px);
+        }
+        
+        .import-btn {
+            background: linear-gradient(90deg, #FF9800, #E65100);
+            color: white;
+        }
+        
+        .import-btn:hover {
+            background: linear-gradient(90deg, #E65100, #B23C00);
+            transform: translateY(-2px);
+        }
+        
+        .clear-btn {
+            background: linear-gradient(90deg, #F44336, #B71C1C);
+            color: white;
+        }
+        
+        .clear-btn:hover {
+            background: linear-gradient(90deg, #B71C1C, #7F0000);
+            transform: translateY(-2px);
+        }
+        
+        .examples {
+            padding: 15px;
+            background-color: #f0f7ff;
+            border-top: 1px solid #ddd;
+        }
+        
+        .examples h3 {
+            margin-bottom: 10px;
+            color: #FF7A00;
+        }
+        
+        .example-item {
+            display: inline-block;
+            margin: 5px 10px 5px 0;
+            padding: 5px 12px;
+            background-color: #e3f2fd;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.9rem;
+        }
+        
+        .example-item:hover {
+            background-color: #bbdefb;
+            transform: scale(1.05);
+        }
+        
+        .status-bar {
+            padding: 8px 15px;
+            background-color: #333;
+            color: white;
+            font-size: 0.9rem;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .logo {
+            position: absolute;
+            top: 15px;
+            left: 20px;
+            font-size: 1.8rem;
+            font-weight: bold;
+        }
+        
+        @media (max-width: 768px) {
+            .editor-container {
+                flex-direction: column;
+                height: auto;
+            }
+            
+            .editor-panel, .output-panel {
+                min-height: 300px;
+            }
+            
+            .controls {
+                flex-wrap: wrap;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">🥭</div>
+            <h1>MangoCompiler</h1>
+            <div class="subtitle">Mango在线编程语言编译器 - 测试版-20251117-02</div>
+        </header>
+        
+        <div class="editor-container">
+            <div class="editor-panel">
+                <div class="panel-title">
+                    <span>代码编辑器</span>
+                    <span id="line-info">行: 1, 列: 1</span>
+                </div>
+                <div class="editor-wrapper">
+                    <textarea id="editor">// Mango语言示例代码
+print("欢迎使用MangoCompiler"{#2E7D32}{20})
+
+arr{name}=input{"请输入您的名字："}
+print("您好，" arr{name} "！"{#2196F3}{18})
+
+arr{a}=10+5
+arr{b}=20-3
+arr{c}=7*8
+arr{d}=15/3
+arr{e}=17%5
+
+print("计算结果："{#FF9800}{16})
+print("10+5=" arr{a})
+print("20-3=" arr{b})
+print("7*8=" arr{c})
+print("15/3=" arr{d})
+print("17%5=" arr{e})
+
+arr{time}={_time_}
+arr{date}={_date_}
+print("当前时间：" arr{time})
+print("当前日期：" arr{date})
+
+// 循环功能已移除
+// 使用变量和条件判断可以实现类似功能
+arr{counter}=0
+arr{max}=3
+print("计数器示例："{#E91E63}{16})
+print("计数器值：" arr{counter})
+arr{counter}=arr{counter}+1
+print("计数器值：" arr{counter})
+arr{counter}=arr{counter}+1
+print("计数器值：" arr{counter})</textarea>
+                </div>
+            </div>
+            
+            <div class="output-panel">
+                <div class="panel-title">
+                    <span>输出结果</span>
+                    <span id="output-status">就绪</span>
+                </div>
+                <div class="output-wrapper">
+                    <div id="output"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="examples">
+            <h3>代码示例</h3>
+            <div class="example-item" data-example="print">打印示例</div>
+            <div class="example-item" data-example="variables">变量示例</div>
+            <div class="example-item" data-example="calculations">计算示例</div>
+            <div class="example-item" data-example="datetime">时间日期</div>
+        </div>
+        
+        <div class="controls">
+            <button class="run-btn" id="run-btn">
+                <span>▶</span> 运行代码
+            </button>
+            <button class="export-btn" id="export-btn">
+                <span>📥</span> 导出代码
+            </button>
+            <button class="import-btn" id="import-btn">
+                <span>📤</span> 导入代码
+            </button>
+            <button class="clear-btn" id="clear-btn">
+                <span>🗑️</span> 清空输出
+            </button>
+        </div>
+        
+        <div class="status-bar">
+            <div>Mango语言编译器 - 由Mango团队开发</div>
+            <div id="status-message">准备就绪</div>
+        </div>
+    </div>
+
+    <!-- 导入CodeMirror库 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/python/python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/edit/matchbrackets.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/display/autorefresh.min.js"></script>
+    
+    <script>
+        // 自定义Mango语言语法高亮
+        CodeMirror.defineMode("mango", function() {
+            return {
+                token: function(stream, state) {
+                    // 处理注释
+                    if (stream.match("//")) {
+                        stream.skipToEnd();
+                        return "comment";
+                    }
+                    
+                    // 处理字符串
+                    if (stream.match(/^"([^"]*)"/)) {
+                        return "string";
+                    }
+                    if (stream.match(/^'([^']*)'/)) {
+                        return "string";
+                    }
+                    
+                    // 处理print关键字
+                    if (stream.match(/^print/)) {
+                        return "keyword";
+                    }
+                    
+                    // 处理arr变量
+                    if (stream.match(/^arr/)) {
+                        return "variable-2";
+                    }
+                    
+                    // 处理input关键字
+                    if (stream.match(/^input/)) {
+                        return "keyword";
+                    }
+                    
+                    // 处理大括号
+                    if (stream.match(/^{/)) {
+                        return "bracket";
+                    }
+                    
+                    // 处理数字
+                    if (stream.match(/^[0-9]+/)) {
+                        return "number";
+                    }
+                    
+                    // 继续前进
+                    stream.next();
+                    return null;
+                }
+            };
+        });
+
+        // 初始化代码编辑器
+        const editor = CodeMirror.fromTextArea(document.getElementById('editor'), {
+            mode: "mango",
+            theme: "monokai",
+            lineNumbers: true,
+            matchBrackets: true,
+            indentUnit: 4,
+            indentWithTabs: false,
+            lineWrapping: true,
+            autofocus: true,
+            autoRefresh: true
+        });
+        
+        // 更新行号信息
+        editor.on('cursorActivity', function() {
+            const cursor = editor.getCursor();
+            document.getElementById('line-info').textContent = `行: ${cursor.line + 1}, 列: ${cursor.ch + 1}`;
+        });
+        
+        // 输出区域
+        const outputElement = document.getElementById('output');
+        const outputStatus = document.getElementById('output-status');
+        const statusMessage = document.getElementById('status-message');
+        
+        // Mango语言解析和执行器
+        class MangoInterpreter {
+            constructor() {
+                this.variables = {};
+                this.output = '';
+            }
+            
+            // 运行代码
+            run(code) {
+                this.output = '';
+                this.variables = {};
+                
+                // 预处理代码：转换为小写，处理注释
+                const lines = code.split('\n')
+                    .map(line => line.trim())
+                    .filter(line => line && !line.startsWith('//'));
+                
+                try {
+                    this.executeLines(lines);
+                } catch (error) {
+                    this.output += `\n错误: ${error.message}`;
+                }
+                
+                return this.output;
+            }
+            
+            // 执行代码行
+            executeLines(lines) {
+                for (let i = 0; i < lines.length; i++) {
+                    const line = lines[i];
+                    
+                    if (line.startsWith('print')) {
+                        this.handlePrint(line);
+                    } else if (line.includes('=input')) {
+                        this.handleInput(line);
+                    } else if (line.includes('={')) {
+                        this.handleVariable(line);
+                    } else {
+                        this.handleCalculation(line);
+                    }
+                }
+            }
+            
+            // 处理打印语句
+            handlePrint(line) {
+                // 提取print内容
+                const match = line.match(/print\((.*)\)/);
+                if (!match) return;
+                
+                let content = match[1];
+                
+                // 处理变量引用
+                content = content.replace(/arr\{([^}]+)\}/g, (match, varName) => {
+                    return this.variables[varName.toLowerCase()] || '';
+                });
+                
+                // 处理颜色和字体大小
+                const colorMatch = content.match(/\{#([^}]+)\}/);
+                const sizeMatch = content.match(/\{([0-9]+)\}/g);
+                
+                let color = '#000';
+                let size = '14px';
+                
+                if (colorMatch) {
+                    color = `#${colorMatch[1]}`;
+                    content = content.replace(/\{#([^}]+)\}/, '');
+                }
+                
+                if (sizeMatch && sizeMatch.length > 0) {
+                    size = `${sizeMatch[sizeMatch.length-1].replace(/\{|\}/g, '')}px`;
+                    content = content.replace(/\{([0-9]+)\}/g, '');
+                }
+                
+                // 移除引号
+                content = content.replace(/["']/g, '');
+                
+                this.output += `<div style="color: ${color}; font-size: ${size}">${content}</div>`;
+            }
+            
+            // 处理输入
+            handleInput(line) {
+                const match = line.match(/arr\{([^}]+)\}=input\{"([^"]*)"\}/);
+                if (!match) return;
+                
+                const varName = match[1].toLowerCase();
+                const promptText = match[2];
+                
+                const userInput = prompt(promptText) || '用户';
+                this.variables[varName] = userInput;
+            }
+            
+            // 处理变量赋值
+            handleVariable(line) {
+                const match = line.match(/arr\{([^}]+)\}=\{([^}]+)\}/);
+                if (!match) return;
+                
+                const varName = match[1].toLowerCase();
+                const value = match[2];
+                
+                if (value === '_time_') {
+                    // 获取当前时间
+                    const now = new Date();
+                    this.variables[varName] = now.toTimeString().substring(0, 8).replace(/:/g, '');
+                } else if (value === '_date_') {
+                    // 获取当前日期
+                    const now = new Date();
+                    this.variables[varName] = now.toISOString().substring(0, 10).replace(/-/g, '');
+                } else {
+                    this.variables[varName] = value;
+                }
+            }
+            
+            // 处理计算
+            handleCalculation(line) {
+                // 简单的变量赋值计算，如 {a}=10+5
+                const match = line.match(/\{([^}]+)\}=(.*)/);
+                if (!match) return;
+                
+                const varName = match[1].toLowerCase();
+                let expression = match[2];
+                
+                // 替换变量引用
+                expression = expression.replace(/arr\{([^}]+)\}/g, (match, varName) => {
+                    return this.variables[varName.toLowerCase()] || '0';
+                });
+                
+                try {
+                    // 使用eval计算表达式
+                    const result = eval(expression);
+                    this.variables[varName] = result;
+                } catch (e) {
+                    // 如果计算失败，可能是变量赋值
+                    this.variables[varName] = expression;
+                }
+            }
+        }
+        
+        // 创建解释器实例
+        const interpreter = new MangoInterpreter();
+        
+        // 运行按钮事件
+        document.getElementById('run-btn').addEventListener('click', function() {
+            outputStatus.textContent = '运行中...';
+            statusMessage.textContent = '正在执行代码...';
+            
+            setTimeout(() => {
+                const code = editor.getValue();
+                const result = interpreter.run(code);
+                outputElement.innerHTML = result;
+                
+                outputStatus.textContent = '执行完成';
+                statusMessage.textContent = '代码执行完成';
+            }, 100);
+        });
+        
+        // 清空输出按钮事件
+        document.getElementById('clear-btn').addEventListener('click', function() {
+            outputElement.innerHTML = '';
+            outputStatus.textContent = '已清空';
+            statusMessage.textContent = '输出已清空';
+        });
+        
+        // 导出代码按钮事件
+        document.getElementById('export-btn').addEventListener('click', function() {
+            const code = editor.getValue();
+            const blob = new Blob([code], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'mango_code.mango';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            statusMessage.textContent = '代码已导出';
+        });
+        
+        // 导入代码按钮事件
+        document.getElementById('import-btn').addEventListener('click', function() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.txt,.mango,.mg,.mangox';
+            
+            input.addEventListener('change', function() {
+                const file = this.files[0];
+                if (!file) return;
+                
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    editor.setValue(e.target.result);
+                    statusMessage.textContent = '代码已导入';
+                };
+                reader.readAsText(file);
+            });
+            
+            input.click();
+        });
+        
+        // 示例代码
+        const examples = {
+            print: `print("Hello, Mango!"{#FF5722}{20})
+print("这是一条彩色消息"{#2196F3}{16})`,
+            
+            variables: `arr{name}="小明"
+arr{age}=18
+print("姓名：" arr{name})
+print("年龄：" arr{age})`,
+            
+            calculations: `arr{a}=10+5
+arr{b}=20-3
+arr{c}=7*8
+arr{d}=15/3
+arr{e}=17%5
+print("10+5=" arr{a})
+print("20-3=" arr{b})
+print("7*8=" arr{c})
+print("15/3=" arr{d})
+print("17%5=" arr{e})`,
+            
+            datetime: `arr{time}={_time_}
+arr{date}={_date_}
+print("当前时间：" arr{time})
+print("当前日期：" arr{date})`
+        };
+        
+        // 示例按钮事件
+        document.querySelectorAll('.example-item').forEach(item => {
+            item.addEventListener('click', function() {
+                const exampleType = this.getAttribute('data-example');
+                editor.setValue(examples[exampleType]);
+                statusMessage.textContent = `已加载 ${this.textContent}`;
+            });
+        });
+        
+        // 初始化状态
+        statusMessage.textContent = 'MangoCompiler 已就绪';
+    </script>
+</body>
+</html>
